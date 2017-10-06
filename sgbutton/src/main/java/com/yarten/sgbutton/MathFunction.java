@@ -57,10 +57,11 @@ public class MathFunction
         update(true);
 
         if(lastingTime > duration) lastingTime = duration;
+        if(lastingTime < 0) lastingTime = 0;
 
         float t = 0;
         if(domainMin == 0 && domainMax == 0) t = lastingTime;
-        else if(duration != 0) t = domainMin + (domainMax-domainMin)*(lastingTime/duration);
+        else if(duration != 0) t = domainMin + (domainMax-domainMin)*(lastingTime*1.0f/duration);
 
         float f = Ftime.f(t);
         float d = codomainMax-codomainMin;
@@ -201,12 +202,14 @@ public class MathFunction
                 break;
             case Runing:
                 if(isResume) isResume = false;
-                else lastingTime += (currentTime-lastTime);
+                else if(forward) lastingTime += (currentTime-lastTime);
+                else lastingTime -= (currentTime-lastTime);
                 break;
             case Pause:
                 if(!isResume)
                 {
-                    lastingTime += (currentTime-lastTime);
+                    if(forward) lastingTime += (currentTime-lastTime);
+                    else lastingTime -= (currentTime-lastTime);
                     isResume = true;
                 }
                 break;

@@ -29,6 +29,7 @@ public class SGRocker extends SurfaceView implements SurfaceHolder.Callback, Run
     //region 构造器
     private SurfaceHolder sfh;
     private Paint bgPainter, fgPainter;
+    private LinearFunction linear;
 
     public SGRocker(Context context)
     {
@@ -42,6 +43,8 @@ public class SGRocker extends SurfaceView implements SurfaceHolder.Callback, Run
         setFocusableInTouchMode(true);
 
         initPainter();
+
+        linear = new LinearFunction(800, 0, 1);
     }
 
     private void initPainter()
@@ -69,6 +72,7 @@ public class SGRocker extends SurfaceView implements SurfaceHolder.Callback, Run
         isRunning = true;
         rockerX = getX();
         rocketY = getY();
+        linear.ready();
         new Thread(this).start();
     }
 
@@ -117,6 +121,7 @@ public class SGRocker extends SurfaceView implements SurfaceHolder.Callback, Run
         float offset2 = radius*(offsetScale-1);
 
         if(!effect) dScale = 1.0f;
+        else dScale = linear.timing();
 
         float D = 2*radius; //*dScale;
         float E = 0; //2*radius*(1-dScale);
@@ -131,13 +136,15 @@ public class SGRocker extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawArc(rectF, -30+90*i+270*(1.0f-dScale), 60, false, bgPainter);
         }
 
-        if(!showing && dScale > 0)
-        {
-            dScale -= 0.05;
-            if(dScale < 0) dScale = 0;
-        }
-        else if(showing && dScale < 1)
-            dScale += 0.05;
+        if(!showing) linear.direction(false);
+        else linear.direction(true);
+//        if(!showing && dScale > 0)
+//        {
+//            dScale -= 0.05;
+//            if(dScale < 0) dScale = 0;
+//        }
+//        else if(showing && dScale < 1)
+//            dScale += 0.05;
 
 
         // 绘制前景
@@ -212,12 +219,19 @@ public class SGRocker extends SurfaceView implements SurfaceHolder.Callback, Run
     @Override
     public boolean onTouchEvent(MotionEvent event)
     {
+        //region 预处理
         int action = event.getAction();
         float cenX = super.getX();
         float cenY = super.getY();
         float offset = radius * offsetScale;
         float curX = event.getX() - offset;
         float curY = event.getY() - offset;
+        //endregion
+
+        // 得到触点到中心的距离
+        float distance = length(cenX-curX, cenY-curY);
+        // 得到摇杆中心与触屏点所形成的角度
+        float rad = getRad(cenX, cenY, curX, curY);
 
         switch (action)
         {
@@ -233,6 +247,7 @@ public class SGRocker extends SurfaceView implements SurfaceHolder.Callback, Run
             //region Case：摇杆移动
             case MotionEvent.ACTION_MOVE:
             {
+                //region 平滑处理（不使摇杆跳跃到触点）
                 if(smooth)
                 {
                     lastingX += (curX-lastX);
@@ -242,11 +257,7 @@ public class SGRocker extends SurfaceView implements SurfaceHolder.Callback, Run
                     curX = lastingX;
                     curY = lastingY;
                 }
-
-                // 得到触点到中心的距离
-                float distance = length(cenX-curX, cenY-curY);
-                // 得到摇杆中心与触屏点所形成的角度
-                float rad = getRad(cenX, cenY, curX, curY);
+                //endregion
 
                 if(distance >= radius*1.3)
                     //region 触点离中心太远，视作离开摇杆区域
@@ -272,37 +283,38 @@ public class SGRocker extends SurfaceView implements SurfaceHolder.Callback, Run
                         rocketY = curY;
                     }   //endregion
                 }   //endregion
-
-                if(isDown) showing = true;
-                else
-                {
-                    showing = false;
-                    rockerX = cenX;
-                    rocketY = cenY;
-                    distance = 0;
-                    rad = (float)(Math.PI);
-                }
-
-                if(onRockerListener != null)
-                {
-                    distance = (distance - 0.05f*radius);
-                    if(distance < 0) distance = 0;
-                    distance = 100 * distance / (0.95f*radius);
-                    onRockerListener.onAction(distance, 180.0f - rad * rad2angle);
-                }
             } break;
             //endregion
 
             //region Case：离开摇杆
             case MotionEvent.ACTION_UP:
             {
-                rockerX = cenX;
-                rocketY = cenY;
-                showing = false;
                 isDown = false;
             } break;
             //endregion
         }
+
+        //region 按压响应（根据按压与否设置相关值）
+        if(isDown) showing = true;
+        else
+        {
+            showing = false;
+            rockerX = cenX;
+            rocketY = cenY;
+            distance = 0;
+            rad = (float)(Math.PI);
+        }
+        //endregion
+
+        //region 调用监听器
+        if(onRockerListener != null)
+        {
+            distance = (distance - 0.05f*radius);
+            if(distance < 0) distance = 0;
+            distance = 100 * distance / (0.95f*radius);
+            onRockerListener.onAction(distance, 180.0f - rad * rad2angle);
+        }
+        //endregion
 
         return true;
     }

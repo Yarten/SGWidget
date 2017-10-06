@@ -28,6 +28,7 @@ public class SGWidget
     public SGWidget(View view)
     {
         this.view = view;
+
         if(view != null)
             //region 设置onTouch监听器
             this.view.setOnTouchListener(new View.OnTouchListener()
