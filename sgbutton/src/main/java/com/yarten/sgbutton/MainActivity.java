@@ -2,15 +2,20 @@ package com.yarten.sgbutton;
 
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.Layout;
 import android.view.MotionEvent;
+import android.view.SurfaceView;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity
 {
-    private SGWidget bt, bt2;
+    private SGFloat bt1;
+    private SGWidgetButton btWidget;
     TextView t1, t2;
+    SGRocker rocker;
 
 
     @Override
@@ -22,45 +27,24 @@ public class MainActivity extends AppCompatActivity
         t1 = findViewById(R.id.textView1);
         t2 = findViewById(R.id.textView2);
 
-        bt2 = new SGWidget(findViewById(R.id.button2));
-        bt2.setOnMoveListener(new SGWidget.OnActionListener()
+        btWidget = new SGWidgetButton(findViewById(R.id.button),
+                (ViewGroup) findViewById(R.id.ly_main));
+        btWidget.setOnAddHandler(new SGWidgetButton.OnAddHandler()
         {
-            private int lastX, lastY;
             @Override
-            public void onAction(View view, MotionEvent event)
+            public View createNewView(int userdata)
             {
-                
+                SGFloat bt = new SGFloat(new Button(MainActivity.this));
+                return bt.getView();
             }
         });
 
-
-        bt = new SGWidget(findViewById(R.id.button));
-        bt.setOnClickListener(new SGWidget.OnActionListener()
-        {
-            @Override
-            public void onAction(View view, MotionEvent event)
-            {
-                t1.setText("Click");
-            }
-        });
-        bt.setOnLongClickListener(new SGWidget.OnActionListener()
-        {
-            @Override
-            public void onAction(View view, MotionEvent event)
-            {
-                t1.setText("Long");
-            }
-        });
-        bt.setOnPressListener(new SGWidget.OnActionListener()
-        {
-            private int num = 0;
-
-            @Override
-            public void onAction(View view, MotionEvent event)
-            {
-                t2.setText(String.format("%d", num++));
-
-            }
-        });
+        rocker = new SGRocker(MainActivity.this);
+        rocker.setX(0);
+        rocker.setY(0);
+        ViewGroup layout = findViewById(R.id.ly_main);
+        layout.addView(rocker);
     }
+
+
 }

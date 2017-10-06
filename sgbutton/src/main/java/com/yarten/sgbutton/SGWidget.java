@@ -9,12 +9,21 @@ import java.lang.ref.WeakReference;
 /**
  * Created by yarten on 2017/10/5.
  * 控件修饰器，用控件初始化该类的对象，可使得对象获得特殊能力
+ * 根据不同事件过程，控件可以定制为以下几种：
+ * 1. 普通点击的控件
+ * 2. 长点击触发的控件，可定制长按时间
+ * 3. 触点移动时做出动作的控件
+ * 4. 触点离开时做出动作的控件
+ * 5. 按住时持续触发动作的控件（不管是否有在移动），可定制时间间隔
+ * 6. 要长按后才能触发连续动作的控件，可定制长按时间
+ * 7. 刚按下时触发动作，长按之后又连续触发另一个动作的控件，可定制长按时间
+ * 8. 以上功能任意组合的控件！！
  */
 
 public class SGWidget
 {
     //region 构造器
-    private View view;
+    protected View view;
 
     public SGWidget(View view)
     {
@@ -46,6 +55,7 @@ public class SGWidget
 
                         onTouch = true;
                         if(onPressListener != null) singlePressThread.start();
+                        if(onDownListener != null) onDownListener.onAction(SGWidget.this.view, event);
                     } //endregion
                     else
                         //region 正在按压：刷新按压时间
@@ -82,6 +92,8 @@ public class SGWidget
                                 onClickListener.onAction(SGWidget.this.view, event);
                             else if(onLongClickListener != null && lastingTime >= longClickTime && !noLongClick)
                                 onLongClickListener.onAction(SGWidget.this.view, event);
+                            else if(noClick && noLongClick && onLeaveListener != null)
+                                onLeaveListener.onAction(SGWidget.this.view, event);
 
                         } break;
                         //endregion
@@ -97,10 +109,13 @@ public class SGWidget
         //endregion
         handler = new SGHandler(this);
     }
+
+    public View getView(){return view;}
     //endregion
 
     //region 事件相关信息获取
     private float lastX, lastY;
+    private boolean onTouch = false;
 
     public float getLastX(){return lastX;}
     public float getLastY(){return lastY;}
@@ -115,8 +130,10 @@ public class SGWidget
 
     private OnActionListener onClickListener;
     private OnActionListener onLongClickListener;
+    private OnActionListener onDownListener;
     private OnActionListener onPressListener;
     private OnActionListener onMoveListener;
+    private OnActionListener onLeaveListener;
 
     public void setOnClickListener(OnActionListener onClickListener)
     {
@@ -136,6 +153,16 @@ public class SGWidget
     public void setOnMoveListener(OnActionListener onMoveListener)
     {
         this.onMoveListener = onMoveListener;
+    }
+
+    public void setOnLeaveListener(OnActionListener onLeaveListener)
+    {
+        this.onLeaveListener = onLeaveListener;
+    }
+
+    public void setOnDownListener(OnActionListener onDownListener)
+    {
+        this.onDownListener = onDownListener;
     }
 
     public boolean noLongClick = false;
@@ -192,6 +219,8 @@ public class SGWidget
             }
         }
     }
+
+    private SGThread singlePressThread;
     //endregion
 
     //region 按压过程定制
@@ -201,8 +230,7 @@ public class SGWidget
     private int intervalTime = 50;
     private int firstIntervalTime = 500;
     private int firstPressOffsetTime = 0;
-    private boolean onTouch = false;
-    private SGThread singlePressThread;
+
 
     public void setLongClickTime(int ms)
     {
