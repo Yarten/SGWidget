@@ -186,9 +186,28 @@ public class SGRocker extends SurfaceView implements SurfaceHolder.Callback, Run
     //endregion
 
     //region 触摸事件管理
+    public interface OnRockerListener
+    {
+        /**
+         * @Title OnAction
+         * @param d: 归一化到0~100的径向距离
+         * @param angle: 从垂直向上往顺时针转过的角度
+         */
+        void onAction(float d, float angle);
+    }
+
+    private OnRockerListener onRockerListener;
+
+    public void setOnRockerListener(OnRockerListener onRockerListener)
+    {
+        this.onRockerListener = onRockerListener;
+    }
+
     private float rockerX, rocketY;
     private float lastX, lastY;
     private float lastingX, lastingY;
+    private final float rad2angle = (float)(180.0 / Math.PI);
+    private boolean isDown = false;
 
     @Override
     public boolean onTouchEvent(MotionEvent event)
@@ -202,13 +221,16 @@ public class SGRocker extends SurfaceView implements SurfaceHolder.Callback, Run
 
         switch (action)
         {
+            //region Case：按下摇杆
             case MotionEvent.ACTION_DOWN:
             {
                 lastX = curX;
                 lastY = curY;
                 lastingX = lastingY = 0;
-                showing = true;
-            } // no break
+            } // no break on purpose
+            //endregion
+
+            //region Case：摇杆移动
             case MotionEvent.ACTION_MOVE:
             {
                 if(smooth)
@@ -221,28 +243,65 @@ public class SGRocker extends SurfaceView implements SurfaceHolder.Callback, Run
                     curY = lastingY;
                 }
 
-                if(length(cenX-curX, cenY-curY) >= radius)
-                    //region 当触屏区域不在活动范围内控制小球落在边沿
-                {
-                    //得到摇杆中心与触屏点所形成的角度
-                    float rad = getRad(cenX, cenY, curX, curY);
-                    //保证内部小圆运动的长度限制
-                    getXYonCircle(cenX, cenY, rad);
-                }   //endregion，
-                else
-                    //region 小球在活动范围内，直接等于当前触点位置
-                {
-                    rockerX = curX;
-                    rocketY = curY;
-                }   //endregion
-            } break;
+                // 得到触点到中心的距离
+                float distance = length(cenX-curX, cenY-curY);
+                // 得到摇杆中心与触屏点所形成的角度
+                float rad = getRad(cenX, cenY, curX, curY);
 
+                if(distance >= radius*1.3)
+                    //region 触点离中心太远，视作离开摇杆区域
+                {
+                    isDown = false;
+                }   //endregion
+                else
+                    //region 触点在摇杆区域中，再分摇杆内外处理
+                {
+                    if(isDown && distance >= radius)
+                    //region 当触屏区域不在活动范围内控制小球落在边沿
+                    {
+                        // 将距离置为半径
+                        distance = radius;
+                        //保证内部小圆运动的长度限制
+                        getXYonCircle(cenX, cenY, rad);
+                    }   //endregion，
+                    else
+                    //region 小球在活动范围内，直接等于当前触点位置
+                    {
+                        isDown = true;
+                        rockerX = curX;
+                        rocketY = curY;
+                    }   //endregion
+                }   //endregion
+
+                if(isDown) showing = true;
+                else
+                {
+                    showing = false;
+                    rockerX = cenX;
+                    rocketY = cenY;
+                    distance = 0;
+                    rad = (float)(Math.PI);
+                }
+
+                if(onRockerListener != null)
+                {
+                    distance = (distance - 0.05f*radius);
+                    if(distance < 0) distance = 0;
+                    distance = 100 * distance / (0.95f*radius);
+                    onRockerListener.onAction(distance, 180.0f - rad * rad2angle);
+                }
+            } break;
+            //endregion
+
+            //region Case：离开摇杆
             case MotionEvent.ACTION_UP:
             {
                 rockerX = cenX;
                 rocketY = cenY;
                 showing = false;
+                isDown = false;
             } break;
+            //endregion
         }
 
         return true;
@@ -254,16 +313,16 @@ public class SGRocker extends SurfaceView implements SurfaceHolder.Callback, Run
         float dx = x2 - x1;
         float dy = y2 - y1;
         float z = length(dx, dy);
-        float cosAngle = dx / z;
+        float cosAngle = dy / z;
         float rad = (float)Math.acos(cosAngle);
-        if(y2 < y1) rad = -rad;
+        if(x2 < x1) rad = -rad;
         return rad;
     }
 
     private void getXYonCircle(float cenX, float cenY, float rad)
     {
-        rockerX = (float)(radius * Math.cos(rad)) + cenX;
-        rocketY = (float)(radius * Math.sin(rad)) + cenY;
+        rockerX = (float)(radius * Math.sin(rad)) + cenX;
+        rocketY = (float)(radius * Math.cos(rad)) + cenY;
     }
 
     private float length(float a, float b)
